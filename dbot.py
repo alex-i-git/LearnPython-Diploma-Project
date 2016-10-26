@@ -18,11 +18,15 @@ bot.
 """
 
 from db import db_session, User
+from datetime import date, datetime
 from telegram import (ReplyKeyboardMarkup)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
 						  ConversationHandler)
+import telegram
 
 import logging
+
+
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -30,25 +34,23 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-GENDER, PHOTO, LOCATION, BIO, AGE = range(5)
+GENDER, PHOTO, LOCATION, BIO, AGE, COMMIT = range(6)
 
-
-def ready(bot, update):
-	reply_keyboard = [['Yes', 'No']]
-	update.message.reply_text(
-		'Hi! My name is Professor Bot. I will hold a conversation with you. '
-		'Send /cancel to stop talking to me.\n\n'
-		'Are you ready?',
-		reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
-
-	print(update.message.chat_id)
 
 def start(bot, update):
+	global user_data
+	user_data=dict()
 	reply_keyboard = [['Boy', 'Girl', 'Other']]
-	print(update.message.chat_id)
-	u = User(update.message.chat.first_name,update.message.chat.last_name,update.message.chat_id)
-	db_session.add(u)
-	db_session.commit()
+	print(update.message.from_user.id)
+	print(update.message.from_user.username)
+	print(update.message.chat)
+	print(update.message.from_user)
+	user_data['id'] = update.message.from_user.id
+	user_data['chat_id']=update.message.chat_id 
+	user_data['username']=update.message.from_user.username
+	#u = User(update.message.from_user.id,update.message.from_user.username)
+	#db_session.add(u)
+	#db_session.commit()
 	update.message.reply_text(
 		'Hi! My name is Professor Bot. I will hold a conversation with you. '
 		'Send /cancel to stop talking to me.\n\n'
@@ -59,7 +61,15 @@ def start(bot, update):
 
 
 def gender(bot, update):
+	if update.message.text == 'Boy':
+		gender = 0
+	elif update.message.text == 'Girl':
+		gender = 1
+	user_data['gender'] = gender
 	user = update.message.from_user
+	#u = User(gender)
+	#db_session.add(u)
+	#db_session.commit()
 	logger.info("Gender of %s: %s" % (user.first_name, update.message.text))
 	update.message.reply_text('I see! Please send me a photo of yourself, '
 							  'so I know what you look like, or send /skip if you don\'t want to.')
@@ -68,11 +78,15 @@ def gender(bot, update):
 
 
 def photo(bot, update):
+	file_name = str(update.message.from_user.id)
+	dir_name = 'photo/'
+	user_data['photo']=dir_name + file_name + '.jpg'
+	print(update.message.text)
 	user = update.message.from_user
 	print(type(update.message.photo))
 	print(update.message.photo)
 	photo_file = bot.getFile(update.message.photo[-1].file_id)
-	photo_file.download('user_photo.jpg')
+	photo_file.download(dir_name + file_name + '.jpg')
 	logger.info("Photo of %s: %s" % (user.first_name, 'user_photo.jpg'))
 	update.message.reply_text('Gorgeous! Now, send me your location please, '
 							  'or send /skip if you don\'t want to.')
@@ -90,6 +104,7 @@ def skip_photo(bot, update):
 
 
 def location(bot, update):
+	print(update.message.text)
 	user = update.message.from_user
 	user_location = update.message.location
 	print(update.message.location)
@@ -111,17 +126,27 @@ def skip_location(bot, update):
 
 
 def bio(bot, update):
+	print(update.message.text)
 	user = update.message.from_user
 	logger.info("Bio of %s: %s" % (user.first_name, update.message.text))
-	update.message.reply_text('Thanks! How old r u?')
+	update.message.reply_text('Please, enter your birthdate in dd.mm.yyyy format.')
 
 	return AGE
 
 def age(bot, update):
+	print(update.message.text)
+	dt = datetime.strptime(update.message.text, '%d.%m.%Y')
+	print(dt)
 	user = update.message.from_user
 	logger.info("Age of %s: %s" % (user.first_name, update.message.text))
 
-	return ConversationHandler.END
+	user = db_session.query(User).filter(User.id == user_data['id']).first()
+	if user == None:
+		u=User(user_data['id'],user_data['chat_id'],datetime.now(),user_data['username'], 0,user_data['gender'],'None', user_data['photo'], 'None')
+		db_session.add(u)
+		db_session.commit()
+
+	return COMMIT
 
 def cancel(bot, update):
 	user = update.message.from_user
@@ -134,10 +159,25 @@ def cancel(bot, update):
 def error(bot, update, error):
 	logger.warn('Update "%s" caused error "%s"' % (update, error))
 
+def commit():
+	
+
+	return ConversationHandler.END
+
 
 def main():
 	# MyQ bot
 	updater = Updater("265721672:AAF2PZz-LI5O1F2P_hiOe5AvMR-g19bwYGk")
+
+	# lp_chat bot
+	#updater = Updater("291897611:AAGKsBmX9pt3mi2FiMzVEzf6V2ErIrjiK5k")
+
+	#Отправка сообщения по chat_id
+	#bot = telegram.Bot("265721672:AAF2PZz-LI5O1F2P_hiOe5AvMR-g19bwYGk")
+	#u = User
+	#for id in u.query.all():
+	#	print(id.chat_id)
+	#	bot.sendMessage(id.chat_id,'Сообщение от бота')
 
 	# Get the dispatcher to register handlers
 	dp = updater.dispatcher
@@ -158,7 +198,9 @@ def main():
 
 			BIO: [MessageHandler([Filters.text], bio)],
 
-			AGE: [MessageHandler([Filters.text], age)]
+			AGE: [MessageHandler([Filters.text], age)],
+
+			COMMIT: [commit]
 		},
 
 		fallbacks=[CommandHandler('cancel', cancel)]
