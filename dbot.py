@@ -36,21 +36,25 @@ logger = logging.getLogger(__name__)
 
 GENDER, PHOTO, LOCATION, BIO, AGE, COMMIT = range(6)
 
+u = User
+
+def talk_to_me(bot, update):
+	user_input = (((update.message.text).lower()).rstrip()).lstrip()
+	print(user_input)
 
 def start(bot, update):
-	global user_data
-	user_data=dict()
 	reply_keyboard = [['Boy', 'Girl', 'Other']]
-	print(update.message.from_user.id)
-	print(update.message.from_user.username)
-	print(update.message.chat)
-	print(update.message.from_user)
-	user_data['id'] = update.message.from_user.id
-	user_data['chat_id']=update.message.chat_id 
-	user_data['username']=update.message.from_user.username
-	#u = User(update.message.from_user.id,update.message.from_user.username)
-	#db_session.add(u)
-	#db_session.commit()
+	user = u.query.filter(User.id == update.message.from_user.id).first()
+	
+	if user is None:
+		user = User()
+		print(user)
+		user.id = int(update.message.from_user.id)
+		user.chat_id = int(update.message.chat_id)
+		user.username = update.message.from_user.username
+		db_session.add(user)
+		db_session.commit()
+
 	update.message.reply_text(
 		'Hi! My name is Professor Bot. I will hold a conversation with you. '
 		'Send /cancel to stop talking to me.\n\n'
@@ -65,12 +69,19 @@ def gender(bot, update):
 		gender = 0
 	elif update.message.text == 'Girl':
 		gender = 1
-	user_data['gender'] = gender
-	user = update.message.from_user
+
+	usr = update.message.from_user
+	user = u.query.filter(User.id == update.message.from_user.id).first()
+	user.gender = gender
+	#print('u.gender =', u.gender)
+	db_session.add(user)
+	db_session.commit()
+	#user_data['gender'] = gender
+	#user = update.message.from_user
 	#u = User(gender)
 	#db_session.add(u)
 	#db_session.commit()
-	logger.info("Gender of %s: %s" % (user.first_name, update.message.text))
+	logger.info("Gender of %s: %s" % (usr.first_name, update.message.text))
 	update.message.reply_text('I see! Please send me a photo of yourself, '
 							  'so I know what you look like, or send /skip if you don\'t want to.')
 
@@ -78,15 +89,17 @@ def gender(bot, update):
 
 
 def photo(bot, update):
-	file_name = str(update.message.from_user.id)
-	dir_name = 'photo/'
-	user_data['photo']=dir_name + file_name + '.jpg'
+	user = u.query.filter(User.id == update.message.from_user.id).first()
+	file_name = 'photo/' + str(update.message.from_user.id) + '.jpg'
+	user.photo=file_name
+	db_session.add(user)
+	db_session.commit()
 	print(update.message.text)
 	user = update.message.from_user
 	print(type(update.message.photo))
 	print(update.message.photo)
 	photo_file = bot.getFile(update.message.photo[-1].file_id)
-	photo_file.download(dir_name + file_name + '.jpg')
+	photo_file.download(file_name)
 	logger.info("Photo of %s: %s" % (user.first_name, 'user_photo.jpg'))
 	update.message.reply_text('Gorgeous! Now, send me your location please, '
 							  'or send /skip if you don\'t want to.')
@@ -135,16 +148,14 @@ def bio(bot, update):
 
 def age(bot, update):
 	print(update.message.text)
-	dt = datetime.strptime(update.message.text, '%d.%m.%Y')
-	print(dt)
+	u.birthdate = datetime.strptime(update.message.text, '%d.%m.%Y')
+	db_session.commit()
+	print(u.birthdate)
 	user = update.message.from_user
 	logger.info("Age of %s: %s" % (user.first_name, update.message.text))
 
-	user = db_session.query(User).filter(User.id == user_data['id']).first()
-	if user == None:
-		u=User(user_data['id'],user_data['chat_id'],datetime.now(),user_data['username'], 0,user_data['gender'],'None', user_data['photo'], 'None')
-		db_session.add(u)
-		db_session.commit()
+	
+	#db_session.commit()
 
 	return COMMIT
 
@@ -169,6 +180,8 @@ def main():
 	# MyQ bot
 	updater = Updater("265721672:AAF2PZz-LI5O1F2P_hiOe5AvMR-g19bwYGk")
 
+	
+
 	# lp_chat bot
 	#updater = Updater("291897611:AAGKsBmX9pt3mi2FiMzVEzf6V2ErIrjiK5k")
 
@@ -181,6 +194,8 @@ def main():
 
 	# Get the dispatcher to register handlers
 	dp = updater.dispatcher
+
+	dp.add_handler(MessageHandler([Filters.text], talk_to_me))
 
 	# Add conversation handler with the states GENDER, PHOTO, LOCATION and BIO
 	conv_handler = ConversationHandler(
@@ -207,6 +222,8 @@ def main():
 	)
 
 	dp.add_handler(conv_handler)
+
+
 
 	# log all errors
 	dp.add_error_handler(error)
