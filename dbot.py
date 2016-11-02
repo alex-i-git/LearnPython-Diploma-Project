@@ -34,26 +34,44 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-GENDER, PHOTO, LOCATION, BIO, AGE, COMMIT = range(6)
+GENDER, PHOTO, LOCATION, BIO, AGE = range(5)
 
 u = User
 
-def talk_to_me(bot, update):
-	user_input = (((update.message.text).lower()).rstrip()).lstrip()
-	print(user_input)
+#def talk_to_me(bot, update):
+#	user_input = (((update.message.text).lower()).rstrip()).lstrip()
+#	print(user_input)
 
 def start(bot, update):
+	#bot.sendMessage(-161326606, text="I'm a bot and it's my test msg.")
+
 	reply_keyboard = [['Boy', 'Girl', 'Other']]
 	user = u.query.filter(User.id == update.message.from_user.id).first()
-	
+	#profile_photo = bot.getUserProfilePhotos(user.id)
+	#print('PHOTO ',profile_photo['photos'][0][-1]['file_id'])
+	# если id юзера нет в базе - собрать его данные: id, chat_id, username, gender, is_admin, profile_photo, sn link
 	if user is None:
 		user = User()
-		print(user)
 		user.id = int(update.message.from_user.id)
+		profile_photo = bot.getUserProfilePhotos(user.id)
 		user.chat_id = int(update.message.chat_id)
 		user.username = update.message.from_user.username
-		db_session.add(user)
-		db_session.commit()
+		pphoto=bot.getFile(profile_photo['photos'][0][-1]['file_id'])
+		photo_file_name = 'photo/' + str(update.message.from_user.id) + '.jpg'
+		pphoto.download(photo_file_name)
+		user.profile_photo = photo_file_name
+		if bot.get_chat(update.message.chat_id)['type'] == 'group':
+				for admin in bot.get_chat_administrators(chat_id=update.message.chat_id):
+					if admin.user.id == user.id:
+						user.is_admin = True
+					else: 
+						user.is_admin = False
+
+	else: 
+		print("Привет, мы знакомы.")
+
+	db_session.add(user)
+	db_session.commit()
 
 	update.message.reply_text(
 		'Hi! My name is Professor Bot. I will hold a conversation with you. '
@@ -89,18 +107,20 @@ def gender(bot, update):
 
 
 def photo(bot, update):
-	user = u.query.filter(User.id == update.message.from_user.id).first()
+	print('State PHOTO')
+	#user = u.query.filter(User.id == update.message.from_user.id).first()
+	#print(user)
 	file_name = 'photo/' + str(update.message.from_user.id) + '.jpg'
-	user.photo=file_name
-	db_session.add(user)
-	db_session.commit()
-	print(update.message.text)
-	user = update.message.from_user
-	print(type(update.message.photo))
-	print(update.message.photo)
+	#user.photo=file_name
+	#db_session.add(user)
+	#db_session.commit()
+	#print(update.message.text)
+	usr = update.message.from_user
+	#print(type(update.message.photo))
+	#print(update.message.photo)
 	photo_file = bot.getFile(update.message.photo[-1].file_id)
 	photo_file.download(file_name)
-	logger.info("Photo of %s: %s" % (user.first_name, 'user_photo.jpg'))
+	logger.info("Photo of %s: %s" % (usr.first_name, 'user_photo.jpg'))
 	update.message.reply_text('Gorgeous! Now, send me your location please, '
 							  'or send /skip if you don\'t want to.')
 
@@ -147,17 +167,27 @@ def bio(bot, update):
 	return AGE
 
 def age(bot, update):
+	print('State AGE')
+	user = u.query.filter(User.id == update.message.from_user.id).first()
 	print(update.message.text)
-	u.birthdate = datetime.strptime(update.message.text, '%d.%m.%Y')
+	user.birthdate = datetime.strptime(update.message.text, '%d.%m.%Y')
+	db_session.add(user)
 	db_session.commit()
 	print(u.birthdate)
 	user = update.message.from_user
-	logger.info("Age of %s: %s" % (user.first_name, update.message.text))
+	logger.info("Birthday of %s: %s" % (user.first_name, update.message.text))
+	bot.sendMessage(-161326606, text="I'm a bot and it's my test msg.")
+#	return SENDM
 
-	
-	#db_session.commit()
+#def sendm(bot, update):
+#	print('test msg')
+#	#user.id=update.message.from_user.id
+#	#if int(user.id) == 276368311:
+#	chid=-161326606
+#	bot.sendMessage(chid, text="I'm a bot and it's my test msg.")
 
-	return COMMIT
+	return ConversationHandler.END
+
 
 def cancel(bot, update):
 	user = update.message.from_user
@@ -170,10 +200,7 @@ def cancel(bot, update):
 def error(bot, update, error):
 	logger.warn('Update "%s" caused error "%s"' % (update, error))
 
-def commit():
-	
 
-	return ConversationHandler.END
 
 
 def main():
@@ -195,7 +222,7 @@ def main():
 	# Get the dispatcher to register handlers
 	dp = updater.dispatcher
 
-	dp.add_handler(MessageHandler([Filters.text], talk_to_me))
+	#dp.add_handler(MessageHandler([Filters.text], talk_to_me))
 
 	# Add conversation handler with the states GENDER, PHOTO, LOCATION and BIO
 	conv_handler = ConversationHandler(
@@ -213,9 +240,9 @@ def main():
 
 			BIO: [MessageHandler([Filters.text], bio)],
 
-			AGE: [MessageHandler([Filters.text], age)],
+			AGE: [MessageHandler([Filters.text], age)]
 
-			COMMIT: [commit]
+			#SENDM: [sendm]
 		},
 
 		fallbacks=[CommandHandler('cancel', cancel)]
