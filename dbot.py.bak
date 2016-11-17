@@ -17,16 +17,16 @@ Press Ctrl-C on the command line or send a signal to the process to stop the
 bot.
 """
 
-from db import db_session, User, Question
+from db import db_session, User
 from datetime import date, datetime
 from telegram import (ReplyKeyboardMarkup)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
 						  ConversationHandler)
-from telegram.error import (TelegramError, Unauthorized, BadRequest, 
-							TimedOut, ChatMigrated, NetworkError)
 import telegram
 
 import logging
+
+
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -34,38 +34,26 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-GENDER, AGE, PHONE, SN = range(4)
+GENDER, PHOTO, LOCATION, BIO, AGE, COMMIT = range(6)
 
 u = User
-q = Question
+
+def talk_to_me(bot, update):
+	user_input = (((update.message.text).lower()).rstrip()).lstrip()
+	print(user_input)
 
 def start(bot, update):
-	q = Question()
 	reply_keyboard = [['Boy', 'Girl', 'Other']]
 	user = u.query.filter(User.id == update.message.from_user.id).first()
+	
 	if user is None:
 		user = User()
+		print(user)
 		user.id = int(update.message.from_user.id)
-		profile_photo = bot.getUserProfilePhotos(user.id)
 		user.chat_id = int(update.message.chat_id)
 		user.username = update.message.from_user.username
-		pphoto=bot.getFile(profile_photo['photos'][0][-1]['file_id'])
-		photo_file_name = 'photo/' + str(update.message.from_user.id) + '.jpg'
-		pphoto.download(photo_file_name)
-		user.profile_photo = photo_file_name
-		if bot.get_chat(update.message.chat_id)['type'] == 'group':
-				for admin in bot.get_chat_administrators(chat_id=update.message.chat_id):
-					if admin.user.id == user.id:
-						user.is_admin = True
-					else: 
-						user.is_admin = False
-
-	else: 
-		print("Привет, мы знакомы.")
-
-	db_session.add(q)
-	db_session.add(user)
-	db_session.commit()
+		db_session.add(user)
+		db_session.commit()
 
 	update.message.reply_text(
 		'Hi! My name is Professor Bot. I will hold a conversation with you. '
@@ -74,6 +62,7 @@ def start(bot, update):
 		reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
 
 	return GENDER
+
 
 def gender(bot, update):
 	if update.message.text == 'Boy':
@@ -87,70 +76,88 @@ def gender(bot, update):
 	#print('u.gender =', u.gender)
 	db_session.add(user)
 	db_session.commit()
+	#user_data['gender'] = gender
+	#user = update.message.from_user
+	#u = User(gender)
+	#db_session.add(u)
+	#db_session.commit()
 	logger.info("Gender of %s: %s" % (usr.first_name, update.message.text))
-	update.message.reply_text('I see! Please send me your birthdate, '
-							  'so I know how old are you, or send /skip if you don\'t want to.')
+	update.message.reply_text('I see! Please send me a photo of yourself, '
+							  'so I know what you look like, or send /skip if you don\'t want to.')
+
+	return PHOTO
+
+
+def photo(bot, update):
+	user = u.query.filter(User.id == update.message.from_user.id).first()
+	file_name = 'photo/' + str(update.message.from_user.id) + '.jpg'
+	user.photo=file_name
+	db_session.add(user)
+	db_session.commit()
+	print(update.message.text)
+	user = update.message.from_user
+	print(type(update.message.photo))
+	print(update.message.photo)
+	photo_file = bot.getFile(update.message.photo[-1].file_id)
+	photo_file.download(file_name)
+	logger.info("Photo of %s: %s" % (user.first_name, 'user_photo.jpg'))
+	update.message.reply_text('Gorgeous! Now, send me your location please, '
+							  'or send /skip if you don\'t want to.')
+
+	return LOCATION
+
+
+def skip_photo(bot, update):
+	user = update.message.from_user
+	logger.info("User %s did not send a photo." % user.first_name)
+	update.message.reply_text('I bet you look great! Now, send me your location please, '
+							  'or send /skip.')
+
+	return LOCATION
+
+
+def location(bot, update):
+	print(update.message.text)
+	user = update.message.from_user
+	user_location = update.message.location
+	print(update.message.location)
+	logger.info("Location of %s: %f / %f"
+				% (user.first_name, user_location.latitude, user_location.longitude))
+	update.message.reply_text('Maybe I can visit you sometime! '
+							  'At last, tell me something about yourself.')
+
+	return BIO
+
+
+def skip_location(bot, update):
+	user = update.message.from_user
+	logger.info("User %s did not send a location." % user.first_name)
+	update.message.reply_text('You seem a bit paranoid! '
+							  'At last, tell me something about yourself.')
+
+	return BIO
+
+
+def bio(bot, update):
+	print(update.message.text)
+	user = update.message.from_user
+	logger.info("Bio of %s: %s" % (user.first_name, update.message.text))
+	update.message.reply_text('Please, enter your birthdate in dd.mm.yyyy format.')
 
 	return AGE
 
 def age(bot, update):
-	print('State age')
-	user = u.query.filter(User.id == update.message.from_user.id).first()
-	print(user)
-	user.birthdate = datetime.strptime(update.message.text, '%d.%m.%Y')
-	print(user.birthdate)
-	db_session.add(user)
+	print(update.message.text)
+	u.birthdate = datetime.strptime(update.message.text, '%d.%m.%Y')
 	db_session.commit()
-	#usr = update.message.from_user
-	#logger.info("Birthday of %s: %s" % (usr.first_name, update.message.text))
-	print(user.birthdate)
-	update.message.reply_text('Now, send me phone number please, '
-							  'or send /skip.')
-	return PHONE
-
-
-def skip_age(bot, update):
+	print(u.birthdate)
 	user = update.message.from_user
-	logger.info("User %s did not send a birthdate." % user.first_name)
-	update.message.reply_text('Now, send me phone number please, '
-							  'or send /skip.')
+	logger.info("Age of %s: %s" % (user.first_name, update.message.text))
 
-	return PHONE
+	
+	#db_session.commit()
 
-def phone(bot, update):
-	print('PHONE state')
-	print(update.message.text)
-	user = update.message.from_user
-	user_phone = update.message.text
-	#print(update.message.location)
-	logger.info("Phone number of %s: %s"
-				% (user.first_name, update.message.text))
-	update.message.reply_text('Maybe I\'ll call you sometime! '
-							  'Show me your best photos! Send me a link to your instagram account.')
-
-	return SN
-
-def skip_phone(bot, update):
-	user = update.message.from_user
-	logger.info("User %s did not send a phone number." % user.first_name)
-	update.message.reply_text('You seem a bit paranoid! '
-							  'Show me your best photos! Send me a link to your instagram account.')
-
-	return SN
-
-def sn(bot, update):
-	print(update.message.text)
-	user = update.message.from_user
-	logger.info("SN account of %s: %s" % (user.first_name, update.message.text))
-
-	return ConversationHandler.END
-
-def skip_sn(bot, update):
-	print(update.message.text)
-	user = update.message.from_user
-	logger.info("Bio of %s: %s" % (user.first_name, update.message.text))
-
-	return ConversationHandler.END
+	return COMMIT
 
 def cancel(bot, update):
 	user = update.message.from_user
@@ -159,36 +166,38 @@ def cancel(bot, update):
 
 	return ConversationHandler.END
 
-#def error(bot, update, error):
-#	logger.warn('Update "%s" caused error "%s"' % (update, error))
 
-def error_callback(bot, update, error):
-	try:
-		raise error
-	#except Unauthorized:
-		# remove update.message.chat_id from conversation list
-	except BadRequest as a:
-		print(a)
-		# handle malformed requests - read more below!
-	except TimedOut as t:
-		print(t)
-		# handle slow connection problems
-	except NetworkError as n:
-		print(n)
-		# handle other connection problems
-	#except ChatMigrated as e:
-		# the chat_id of a group has changed, use e.new_chat_id instead
-	except TelegramError as ter:
-		print(ter)
-		# handle all other telegram related errors
-		
+def error(bot, update, error):
+	logger.warn('Update "%s" caused error "%s"' % (update, error))
+
+def commit():
+	
+
+	return ConversationHandler.END
+
+
 def main():
 	# MyQ bot
 	updater = Updater("265721672:AAF2PZz-LI5O1F2P_hiOe5AvMR-g19bwYGk")
 
+	
+
+	# lp_chat bot
+	#updater = Updater("291897611:AAGKsBmX9pt3mi2FiMzVEzf6V2ErIrjiK5k")
+
+	#Отправка сообщения по chat_id
+	#bot = telegram.Bot("265721672:AAF2PZz-LI5O1F2P_hiOe5AvMR-g19bwYGk")
+	#u = User
+	#for id in u.query.all():
+	#	print(id.chat_id)
+	#	bot.sendMessage(id.chat_id,'Сообщение от бота')
+
+	# Get the dispatcher to register handlers
 	dp = updater.dispatcher
 
-	# Add conversation handler with the states GENDER, AGE, PHONE, SN
+	dp.add_handler(MessageHandler([Filters.text], talk_to_me))
+
+	# Add conversation handler with the states GENDER, PHOTO, LOCATION and BIO
 	conv_handler = ConversationHandler(
 		entry_points=[CommandHandler('start', start)],
 		#entry_points=[CommandHandler('ready', ready)],
@@ -196,16 +205,17 @@ def main():
 		states={
 			GENDER: [RegexHandler('^(Boy|Girl|Other)$', gender)],
 			
-			AGE: [MessageHandler([Filters.text], age),
-					CommandHandler('skip', skip_age)],
+			PHOTO: [MessageHandler([Filters.photo], photo),
+					CommandHandler('skip', skip_photo)],
 
-			PHONE: [MessageHandler([Filters.text], phone),
-						CommandHandler('skip', skip_phone)],
+			LOCATION: [MessageHandler([Filters.location], location),
+					   CommandHandler('skip', skip_location)],
 
-			SN: [MessageHandler([Filters.text], sn),
-						CommandHandler('skip', skip_sn)]
+			BIO: [MessageHandler([Filters.text], bio)],
 
-			#SENDM: [sendm]
+			AGE: [MessageHandler([Filters.text], age)],
+
+			COMMIT: [commit]
 		},
 
 		fallbacks=[CommandHandler('cancel', cancel)]
@@ -216,7 +226,7 @@ def main():
 
 
 	# log all errors
-	dp.add_error_handler(error_callback)
+	dp.add_error_handler(error)
 
 	# Start the Bot
 	updater.start_polling()

@@ -1,6 +1,6 @@
 
 from sqlalchemy import create_engine
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -65,7 +65,8 @@ class Question(Base):
 
 
 	def __repr__(self):
-		return '<User {} {} {} {} {}>'.format(self.question_id,self.question_text,self.question_creation_date,self.question_to_send_date,self.question_type)
+		return '<User {} {} {} {} {}>'.format(self.question_id,self.question_text,self.question_creation_date,
+												self.question_to_send_date,self.question_type)
 
 class Survey(Base):
 	__tablename__ = 'survey'
@@ -81,8 +82,22 @@ class Survey(Base):
 	user_id = Column(Integer, ForeignKey('users.id'))
 	
 
-	def __init__(self, )
+	def __init__(self, id = None, answer_date = None, feel_today = None, where_are_you = None, 
+					are_you_happy_now = None, fresh_selfy = None, first_app = None, color_you_like = None):
 
+		self.id = id
+		self.answer_date = answer_date
+		self.feel_today = feel_today
+		self.where_are_you = where_are_you
+		self.are_you_happy_now = are_you_happy_now
+		self.fresh_selfy = fresh_selfy
+		self.first_app = first_app
+		self.color_you_like = color_you_like
+
+	def __repr__(self):
+		return '<User {} {} {} {} {} {} {} {}>'.format(self.id, self.answer_date, self.feel_today, self.where_are_you, 
+			self.are_you_happy_now, self.fresh_selfy, self.first_app, self.color_you_like)
+		
 class Answer(Base):
 	__tablename__ = 'answers'
 	id = Column(Integer, primary_key=True)
