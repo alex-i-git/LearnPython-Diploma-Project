@@ -17,7 +17,7 @@ Press Ctrl-C on the command line or send a signal to the process to stop the
 bot.
 """
 
-from db import db_session, User, Question
+from db import db_session, User, Question, Survey
 from datetime import date, datetime
 from telegram import (ReplyKeyboardMarkup)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
@@ -28,16 +28,47 @@ import telegram
 
 import logging
 
+import csv
+
+import os.path
+
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 					level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-GENDER, AGE, PHONE, SN = range(4)
+GENDER, AGE, PHONE, SN, \
+FEEL_TODAY, WHERE_ARE_YOU, ARE_YOU_HAPPY_NOW, \
+FRESH_SELFY, FIRST_APP, \
+SMART_SCREENSHOT, COLOR_YOU_LIKE = range(11)
 
 u = User
 q = Question
+survey = Survey
+# Добавить проверку на существование в photo: profile, selfy, screenshot
+photo_dir='photo'
+if os.path.isdir(photo_dir) == False:
+	os.mkdir(photo_dir)
+	os.mkdir(photo_dir + '/profile')
+	os.mkdir(photo_dir + '/selfy')
+	os.mkdir(photo_dir + '/screenshot')
+
+if os.path.isfile('botdb.sqlite') == True:
+	print('Db file exists')
+# Загрузка вопросов из файла questions.txt в базу
+# перенести в файл db и запускать 1 раз
+
+with open('questions.txt', 'r') as f:
+
+	fields = ['question_text']
+	reader = csv.DictReader(f, fields, delimiter='\n')
+	for row in reader:
+		q = Question(question_text=row['question_text'])
+		db_session.add(q)
+		db_session.commit()
+
+
 
 def start(bot, update):
 	q = Question()
@@ -50,7 +81,7 @@ def start(bot, update):
 		user.chat_id = int(update.message.chat_id)
 		user.username = update.message.from_user.username
 		pphoto=bot.getFile(profile_photo['photos'][0][-1]['file_id'])
-		photo_file_name = 'photo/' + str(update.message.from_user.id) + '.jpg'
+		photo_file_name = 'photo/profile/' + str(update.message.from_user.id) + '.jpg'
 		pphoto.download(photo_file_name)
 		user.profile_photo = photo_file_name
 		if bot.get_chat(update.message.chat_id)['type'] == 'group':
@@ -63,7 +94,7 @@ def start(bot, update):
 	else: 
 		print("Привет, мы знакомы.")
 
-	db_session.add(q)
+	#db_session.add(q)
 	db_session.add(user)
 	db_session.commit()
 
@@ -80,13 +111,19 @@ def gender(bot, update):
 		gender = 0
 	elif update.message.text == 'Girl':
 		gender = 1
+	else:
+		gender = 3
 
 	usr = update.message.from_user
 	user = u.query.filter(User.id == update.message.from_user.id).first()
 	user.gender = gender
 	#print('u.gender =', u.gender)
-	db_session.add(user)
-	db_session.commit()
+	try:
+		db_session.add(user)
+		db_session.commit()
+	except Exception as e:
+		print(e)
+
 	logger.info("Gender of %s: %s" % (usr.first_name, update.message.text))
 	update.message.reply_text('I see! Please send me your birthdate, '
 							  'so I know how old are you, or send /skip if you don\'t want to.')
@@ -122,6 +159,10 @@ def phone(bot, update):
 	print(update.message.text)
 	user = update.message.from_user
 	user_phone = update.message.text
+	usr = u.query.filter(User.id == update.message.from_user.id).first()
+	usr.phone = update.message.text
+	db_session.add(usr)
+	db_session.commit()
 	#print(update.message.location)
 	logger.info("Phone number of %s: %s"
 				% (user.first_name, update.message.text))
@@ -140,6 +181,11 @@ def skip_phone(bot, update):
 
 def sn(bot, update):
 	print(update.message.text)
+	usr = u.query.filter(User.id == update.message.from_user.id).first()
+	usr.sn = update.message.text
+	db_session.add(usr)
+	db_session.commit()	
+
 	user = update.message.from_user
 	logger.info("SN account of %s: %s" % (user.first_name, update.message.text))
 
@@ -152,6 +198,8 @@ def skip_sn(bot, update):
 
 	return ConversationHandler.END
 
+#def feel_today(bot, update):
+	
 def cancel(bot, update):
 	user = update.message.from_user
 	logger.info("User %s canceled the conversation." % user.first_name)
@@ -159,8 +207,143 @@ def cancel(bot, update):
 
 	return ConversationHandler.END
 
-#def error(bot, update, error):
-#	logger.warn('Update "%s" caused error "%s"' % (update, error))
+def info(bot, update):
+	#сделать проверку на наличие юзера в бд
+	reply_keyboard = [['Хорошо', 'Плохо', 'Нормально']] 
+	update.message.reply_text(
+		'Привет! Я хочу задать тебе несколько вопросов. '
+		'Как твое самочувствие сегодня?',
+		reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
+
+	return FEEL_TODAY
+
+def feel_today(bot, update):
+	#reply_keyboard = [['скорее,да', 'да', 'скорее,нет', 'нет']]
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.answer_text = str(update.message.text)
+	survey.answer_date = dt_now
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 1
+	db_session.add(survey)
+	db_session.commit()	
+	update.message.reply_text(
+		'Где ты сейчас? Пришли мне геотег или нажми /skip, чтобы пропустить.')
+		#reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))
+	print('feel_today ends')
+	return WHERE_ARE_YOU
+	#return ARE_YOU_HAPPY_NOW
+
+def where_are_you(bot, update):
+	print('STATE WHERE_R_U')
+	reply_keyboard = [['скорее,да', 'да', 'скорее,нет', 'нет']]
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.answer_date = dt_now
+	survey.where_are_you = str(update.message.text)
+	db_session.add(survey)
+	db_session.commit()	
+	update.message.reply_text(
+	'Ты счастливый сейчас?',
+		reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))	
+	
+	return ARE_YOU_HAPPY_NOW
+
+def skip_where_are_you(bot, update):
+	survey = Survey()
+	reply_keyboard = [['скорее,да', 'да', 'скорее,нет', 'нет']]
+	dt_now = datetime.now()
+	survey.answer_text = 'skip'
+	survey.answer_date = dt_now
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 3
+	db_session.add(survey)
+	db_session.commit()	
+	update.message.reply_text(
+	'Ты счастливый сейчас?',
+		reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))	
+
+	return ARE_YOU_HAPPY_NOW	
+
+def are_you_happy_now(bot, update):
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.answer_text = str(update.message.text)
+	survey.answer_date = dt_now
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 3
+	db_session.add(survey)
+	db_session.commit()	
+	update.message.reply_text(
+		'Пришли мне свежее селфи!')
+
+	return FRESH_SELFY
+
+def fresh_selfy(bot, update):
+	survey = Survey()
+	d_t_now = datetime.now()
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 4
+	survey.answer_date = d_t_now
+	photo_file = bot.getFile(update.message.photo[-1].file_id)
+	photo_file.download('photo/selfy/selfy_' + str(update.message.from_user.id) + '_' + str(d_t_now.strftime('%d.%m.%Y_%H:%M')) + '.jpg')
+	survey.answer_photo = 'photo/selfy/selfy_' + str(update.message.from_user.id) + '_' + str(d_t_now.strftime('%d.%m.%Y_%H:%M')) + '.jpg'
+	db_session.add(survey)
+	db_session.commit()	
+	reply_keyboard = [['Mail','Skype','Internet Browser','Facebook','Vkontakte','Odnoklassniki','Twitter']]
+	update.message.reply_text(
+		'Какое приложение на смартфоне ты открыл первым? '
+		'Выбери один из предложенных вариантов или введи свой',
+		reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))
+	return FIRST_APP
+
+def first_app(bot, update):
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.answer_text = str(update.message.text)
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 5
+	survey.answer_date = dt_now
+	db_session.add(survey)
+	db_session.commit()	
+	update.message.reply_text(
+		'Пришли мне скриншот открытых приложения на твоем смартфоне.')
+	
+	return SMART_SCREENSHOT
+
+def smart_screenshot(bot, update):
+	survey = Survey()
+	reply_keyboard = [['1','2','3','4','5','6','7','8','9']]
+	dt_now = datetime.now()
+
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 6
+	survey.answer_date = dt_now
+	db_session.add(survey)
+	db_session.commit()	
+	photo_file = bot.getFile(update.message.photo[-1].file_id)
+	photo_file.download('photo/screenshot/screenshot_' + str(update.message.from_user.id) + '_' + str(dt_now.strftime('%d.%m.%Y_%H:%M')) + '.jpg')
+	survey.answer_photo = 'photo/screenshot/screenshot_' + str(update.message.from_user.id) + '_' + str(dt_now.strftime('%d.%m.%Y_%H:%M')) + '.jpg'
+
+	update.message.reply_text(
+	'Какой цвет сейчас тебе больше нравится?',
+			reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))
+	
+	return COLOR_YOU_LIKE
+
+
+def color_you_like(bot, update):
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 7
+	survey.answer_date = dt_now
+	survey.answer_text = str(update.message.text)
+	db_session.add(survey)
+	db_session.commit()	
+	
+	return ConversationHandler.END
+
 
 def error_callback(bot, update, error):
 	try:
@@ -190,22 +373,37 @@ def main():
 
 	# Add conversation handler with the states GENDER, AGE, PHONE, SN
 	conv_handler = ConversationHandler(
-		entry_points=[CommandHandler('start', start)],
+		entry_points=[CommandHandler('start', start),
+					CommandHandler('info', info)],
 		#entry_points=[CommandHandler('ready', ready)],
+# Добавить скип для локейшна и селфи
 
 		states={
 			GENDER: [RegexHandler('^(Boy|Girl|Other)$', gender)],
 			
-			AGE: [MessageHandler([Filters.text], age),
+			AGE: [MessageHandler(Filters.text, age),
 					CommandHandler('skip', skip_age)],
 
-			PHONE: [MessageHandler([Filters.text], phone),
+			PHONE: [MessageHandler(Filters.text, phone),
 						CommandHandler('skip', skip_phone)],
 
-			SN: [MessageHandler([Filters.text], sn),
-						CommandHandler('skip', skip_sn)]
+			SN: [MessageHandler(Filters.text, sn),
+						CommandHandler('skip', skip_sn)],
 
-			#SENDM: [sendm]
+			FEEL_TODAY: [MessageHandler(Filters.text, feel_today)],
+
+			WHERE_ARE_YOU: [MessageHandler(Filters.location, where_are_you),
+										CommandHandler('skip', skip_where_are_you)],
+
+			ARE_YOU_HAPPY_NOW: [MessageHandler(Filters.text, are_you_happy_now)],
+
+			FRESH_SELFY: [MessageHandler(Filters.photo, fresh_selfy)],
+
+			FIRST_APP: [MessageHandler(Filters.text, first_app)],
+
+			SMART_SCREENSHOT: [MessageHandler(Filters.photo, smart_screenshot)],
+
+			COLOR_YOU_LIKE: [MessageHandler(Filters.text, color_you_like)]
 		},
 
 		fallbacks=[CommandHandler('cancel', cancel)]
