@@ -209,7 +209,7 @@ def cancel(bot, update):
 
 def info(bot, update):
 	#сделать проверку на наличие юзера в бд
-	reply_keyboard = [['Хорошо', 'Плохо', 'Нормально']] 
+	reply_keyboard = [['Хорошо'], ['Плохо'], ['Нормально']] 
 	update.message.reply_text(
 		'Привет! Я хочу задать тебе несколько вопросов. '
 		'Как твое самочувствие сегодня?',
@@ -236,7 +236,7 @@ def feel_today(bot, update):
 
 def where_are_you(bot, update):
 	print('STATE WHERE_R_U')
-	reply_keyboard = [['скорее,да', 'да', 'скорее,нет', 'нет']]
+	reply_keyboard = [['скорее,да'], ['да'], ['скорее,нет'], ['нет']]
 	survey = Survey()
 	dt_now = datetime.now()
 	survey.answer_date = dt_now
@@ -251,7 +251,7 @@ def where_are_you(bot, update):
 
 def skip_where_are_you(bot, update):
 	survey = Survey()
-	reply_keyboard = [['скорее,да', 'да', 'скорее,нет', 'нет']]
+	reply_keyboard = [['скорее,да'], ['да'], ['скорее,нет'], ['нет']]
 	dt_now = datetime.now()
 	survey.answer_text = 'skip'
 	survey.answer_date = dt_now
@@ -290,7 +290,7 @@ def fresh_selfy(bot, update):
 	survey.answer_photo = 'photo/selfy/selfy_' + str(update.message.from_user.id) + '_' + str(d_t_now.strftime('%d.%m.%Y_%H:%M')) + '.jpg'
 	db_session.add(survey)
 	db_session.commit()	
-	reply_keyboard = [['Mail','Skype','Internet Browser','Facebook','Vkontakte','Odnoklassniki','Twitter']]
+	reply_keyboard = [['Mail'],['Skype'],['Internet Browser'],['Facebook'],['Vkontakte'],['Odnoklassniki'],['Twitter']]
 	update.message.reply_text(
 		'Какое приложение на смартфоне ты открыл первым? '
 		'Выбери один из предложенных вариантов или введи свой',
