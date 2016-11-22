@@ -4,17 +4,6 @@ from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Foreign
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-import csv
-
-q = Question
-with open('questions.txt', 'r') as f:
-
-	fields = ['question_text']
-	reader = csv.DictReader(f, fields, delimiter='\n')
-	for row in reader:
-		q = Question(question_text=row['question_text'])
-		db_session.add(q)
-		db_session.commit()
 
 engine = create_engine('sqlite:///botdb.sqlite')
 

@@ -58,6 +58,14 @@ if os.path.isfile('botdb.sqlite') == True:
 	print('Db file exists')
 # Загрузка вопросов из файла questions.txt в базу
 # перенести в файл db и запускать 1 раз
+with open('questions.txt', 'r') as f:
+
+	fields = ['question_text']
+	reader = csv.DictReader(f, fields, delimiter='\n')
+	for row in reader:
+		q = Question(question_text=row['question_text'])
+		db_session.add(q)
+		db_session.commit()
 
 
 
