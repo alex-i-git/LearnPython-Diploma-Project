@@ -6,6 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 import csv
 
+q = Question
 with open('questions.txt', 'r') as f:
 
 	fields = ['question_text']
