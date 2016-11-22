@@ -59,14 +59,6 @@ if os.path.isfile('botdb.sqlite') == True:
 # Загрузка вопросов из файла questions.txt в базу
 # перенести в файл db и запускать 1 раз
 
-with open('questions.txt', 'r') as f:
-
-	fields = ['question_text']
-	reader = csv.DictReader(f, fields, delimiter='\n')
-	for row in reader:
-		q = Question(question_text=row['question_text'])
-		db_session.add(q)
-		db_session.commit()
 
 
 
@@ -237,10 +229,14 @@ def feel_today(bot, update):
 def where_are_you(bot, update):
 	print('STATE WHERE_R_U')
 	reply_keyboard = [['скорее,да'], ['да'], ['скорее,нет'], ['нет']]
+	print(update.message.location)
 	survey = Survey()
 	dt_now = datetime.now()
 	survey.answer_date = dt_now
-	survey.where_are_you = str(update.message.text)
+	survey.question_id = 2
+	survey.user_id = update.message.from_user.id
+	survey.longitude = update.message.location['longitude']
+	survey.latitude = update.message.location['latitude']
 	db_session.add(survey)
 	db_session.commit()	
 	update.message.reply_text(

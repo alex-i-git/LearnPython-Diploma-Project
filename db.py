@@ -1,9 +1,19 @@
 
 from sqlalchemy import create_engine
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, ForeignKey, Float
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
+import csv
+
+with open('questions.txt', 'r') as f:
+
+	fields = ['question_text']
+	reader = csv.DictReader(f, fields, delimiter='\n')
+	for row in reader:
+		q = Question(question_text=row['question_text'])
+		db_session.add(q)
+		db_session.commit()
 
 engine = create_engine('sqlite:///botdb.sqlite')
 
@@ -82,9 +92,12 @@ class Survey(Base):
 	user_id = Column(Integer, ForeignKey('users.id'))
 	answer_text = Column(String(100))
 	answer_photo = Column(String(100))
+	latitude = Column(Float)
+	longitude = Column(Float)
 	
 
-	def __init__(self, id = None, answer_date = None, answer_text = None, user_id = None, answer_photo = None):
+	def __init__(self, id = None, answer_date = None, answer_text = None, \
+		user_id = None, answer_photo = None, latitude = None, longitude = None):
 
 		self.id = id
 		self.answer_date = answer_date
@@ -96,9 +109,12 @@ class Survey(Base):
 		self.answer_text = answer_text
 		self.user_id = user_id
 		self.answer_photo = answer_photo
+		self.latitude = latitude
+		self.longitude = longitude
 
 	def __repr__(self):
-		return '<User {} {} {} {} {}>'.format(self.id, self.answer_date, self.answer_text, self.user_id, self.answer_photo)
+		return '<User {} {} {} {} {} {} {}>'.format(self.id, self.answer_date, \
+			self.answer_text, self.user_id, self.answer_photo, self.latitude, self.longitude)
 		
 class Answer(Base):
 	__tablename__ = 'answers'
