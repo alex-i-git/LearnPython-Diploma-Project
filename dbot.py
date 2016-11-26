@@ -19,7 +19,7 @@ bot.
 
 from db import db_session, User, Question, Survey
 from datetime import date, datetime
-from telegram import (ReplyKeyboardMarkup)
+from telegram import (ReplyKeyboardMarkup, KeyboardButton)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
 						  ConversationHandler)
 from telegram.error import (TelegramError, Unauthorized, BadRequest, 
@@ -31,6 +31,10 @@ import logging
 import csv
 
 import os.path
+
+import sched
+
+import time
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -88,20 +92,17 @@ def start(bot, update):
 				for admin in bot.get_chat_administrators(chat_id=update.message.chat_id):
 					if admin.user.id == user.id:
 						user.is_admin = True
-					else: 
+					else:
 						user.is_admin = False
 
-	else: 
-		print("Привет, мы знакомы.")
+	else:
+		update.message.reply_text('Привет, мы знакомы.')
 
-	#db_session.add(q)
 	db_session.add(user)
 	db_session.commit()
 
 	update.message.reply_text(
-		'Hi! My name is Professor Bot. I will hold a conversation with you. '
-		'Send /cancel to stop talking to me.\n\n'
-		'Are you a boy or a girl?',
+		'Привет! Как тебя зовут? ',
 		reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
 
 	return GENDER
@@ -209,6 +210,7 @@ def cancel(bot, update):
 
 def info(bot, update):
 	#сделать проверку на наличие юзера в бд
+	#reply_keyboard = [[KeyboardButton('Хорошо',request_location=True)], [KeyboardButton('Плохо',request_location=True)], [KeyboardButton('Нормально',request_location=True)]] 
 	reply_keyboard = [['Хорошо'], ['Плохо'], ['Нормально']] 
 	update.message.reply_text(
 		'Привет! Я хочу задать тебе несколько вопросов. '
@@ -219,6 +221,7 @@ def info(bot, update):
 
 def feel_today(bot, update):
 	#reply_keyboard = [['скорее,да', 'да', 'скорее,нет', 'нет']]
+	print(update.message)
 	survey = Survey()
 	dt_now = datetime.now()
 	survey.answer_text = str(update.message.text)
@@ -248,7 +251,7 @@ def where_are_you(bot, update):
 	db_session.add(survey)
 	db_session.commit()	
 	update.message.reply_text(
-	'Ты счастливый сейчас?',
+	'Спасибо! Ты счастливый сейчас?',
 		reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))	
 	
 	return ARE_YOU_HAPPY_NOW
@@ -317,7 +320,7 @@ def first_app(bot, update):
 
 def smart_screenshot(bot, update):
 	survey = Survey()
-	reply_keyboard = [['1','2','3','4','5','6','7','8','9']]
+	reply_keyboard = [['1','2','3'],['4','5','6'],['7','8','9']]
 	dt_now = datetime.now()
 
 	survey.user_id = update.message.from_user.id
@@ -348,6 +351,9 @@ def color_you_like(bot, update):
 	
 	return ConversationHandler.END
 
+def help(bot, update):
+	update.message.reply_text('/start - знакомство с ботом. /info - запустить опрос.')
+	return ConversationHandler.END	
 
 def error_callback(bot, update, error):
 	try:
@@ -378,7 +384,8 @@ def main():
 	# Add conversation handler with the states GENDER, AGE, PHONE, SN
 	conv_handler = ConversationHandler(
 		entry_points=[CommandHandler('start', start),
-					CommandHandler('info', info)],
+					CommandHandler('info', info),
+					CommandHandler('help', help)],
 		#entry_points=[CommandHandler('ready', ready)],
 # Добавить скип для локейшна и селфи
 
