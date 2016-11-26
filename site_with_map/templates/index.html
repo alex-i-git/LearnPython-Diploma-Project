@@ -33,7 +33,7 @@
              <!-- Collect the nav links, forms, and other content for toggling -->
              <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
                   <ul class="nav navbar-nav">
-                    <li class="active"><a href="#">Project Intro<span class="sr-only">(current)</span></a></li>
+                    <li class="active"><a href="/about/">Project Intro<span class="sr-only">(current)</span></a></li>
                     <li><a href="#">@My_Q_bot</a></li>
                     <li class="dropdown">
                       <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Dropdown <span class="caret"></span></a>
@@ -92,17 +92,19 @@ function myMap() {
     rotateControl: true
   }
   var map = new google.maps.Map(mapCanvas, mapOptions);
-  var myCenter = new google.maps.LatLng(55.751244, 37.618423);
-  var marker = new google.maps.Marker({
-    position: myCenter, 
-    map: map
-  });
-    google.maps.event.addListener(marker,'click',function() {
-    var infowindow = new google.maps.InfoWindow({
-      content:"Hello World!"
+  {% for survey in surveys %}
+    var myCenter = new google.maps.LatLng({{ survey.latitude }}, {{ survey.longitude }});
+    var marker = new google.maps.Marker({
+      position: myCenter, 
+      map: map
     });
-  infowindow.open(map,marker);
-  });
+    google.maps.event.addListener(marker,'click',function() {
+      var infowindow = new google.maps.InfoWindow({
+        content:"My Opinion! {{ survey.answer_text }}, {{ survey.answer_date.strftime('%d-%m-%Y %H:%M') }} "
+      });
+    infowindow.open(map,marker);
+    });
+  {% endfor %}
 }
 </script>
 
