@@ -6,8 +6,11 @@
 # /help - usage
 
 from db import db_session, User, Question, Survey
+
 from datetime import date, datetime
+
 from telegram import (ReplyKeyboardMarkup, KeyboardButton)
+
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
 						  ConversationHandler)
 from telegram.error import (TelegramError, Unauthorized, BadRequest, 
@@ -107,6 +110,7 @@ def name(bot, update):
 		print(e)
 
 	update.message.reply_text('Привет, %s!' % name)
+	update.message.reply_text('Теперь можно нажать /info и перейти к интервью.')
 	return ConversationHandler.END
 
 
@@ -212,7 +216,13 @@ def cancel(bot, update):
 	return ConversationHandler.END
 
 def info(bot, update):
-	#сделать проверку на наличие юзера в бд
+	#проверка на наличие юзера в бд
+	user = u.query.filter(User.id == update.message.from_user.id).first()
+	if user is None:
+		update.message.reply_text('Привет, давай познакомимся! '
+			'Пожалуйста, нажми /start и представься боту)')
+		return ConversationHandler.END
+
 	#reply_keyboard = [[KeyboardButton('Хорошо',request_location=True)], [KeyboardButton('Плохо',request_location=True)], [KeyboardButton('Нормально',request_location=True)]] 
 	#reply_keyboard = [['Мальчик'], ['Девочка']]
 	reply_keyboard = [['Хорошо', 'Плохо', 'Нормально']] 
