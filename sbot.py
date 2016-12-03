@@ -103,14 +103,16 @@ def name(bot, update):
 	name = update.message.text
 	user = u.query.filter(User.id == update.message.from_user.id).first()
 	user.name = name
+	user.first_date = datetime.now()
 	try:
 		db_session.add(user)
 		db_session.commit()
 	except Exception as e:
 		print(e)
 
-	update.message.reply_text('Привет, %s!' % name)
-	update.message.reply_text('Теперь можно нажать /info и перейти к интервью.')
+	update.message.reply_text('Привет, %s! ' % name)
+	update.message.reply_text('Я QBot. Буду спрашивать тебя обо всем. \
+							Теперь можно нажать /info и перейти к интервью.')
 	return ConversationHandler.END
 
 

@@ -18,6 +18,7 @@ class User(Base):
 	chat_id = Column(Integer)
 	#birthdate = Column(Date, required=False)
 	birthdate = Column(Date)
+	first_date = Column(Date)
 	username = Column(String(50))
 	name = Column(String(50))
 	is_admin = Column(Boolean) # админ чата или нет
@@ -31,11 +32,13 @@ class User(Base):
 
 
 
-	def __init__(self,id=None, chat_id=None, birthdate=None, username=None, is_admin=None, \
+	def __init__(self,id=None, chat_id=None, birthdate=None, first_date=None,\
+		username=None, is_admin=None, \
 		gender=None, phone=None,profile_photo=None,sn=None, name=None):
 		self.id = id
 		self.chat_id = chat_id
 		self.birthdate = birthdate
+		self.first_date = first_date
 		self.username = username
 		self.is_admin = is_admin
 		self.gender = gender
@@ -46,7 +49,8 @@ class User(Base):
 
 
 	def __repr__(self):
-		return '<User {} {} {} {} {} {} {} {} {}>'.format(self.chat_id,self.birthdate,\
+		return '<User {} {} {} {} {} {} {} {} {}>'.format(self.chat_id,\
+			self.birthdate, self.first_date,\
 			self.username,self.is_admin,self.gender,self.phone,\
 			self.profile_photo,self.sn,self.name)
 
