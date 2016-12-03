@@ -39,7 +39,7 @@ SMART_SCREENSHOT, COLOR_YOU_LIKE, NAME, CUR_MOOD = range(13)
 u = User
 q = Question
 survey = Survey
-# Добавить проверку на существование в photo: profile, selfy, screenshot
+
 photo_dir='photo'
 if os.path.isdir(photo_dir) == False:
 	os.mkdir(photo_dir)
@@ -49,8 +49,7 @@ if os.path.isdir(photo_dir) == False:
 
 if os.path.isfile('botdb.sqlite') == True:
 	print('Db file exists')
-# Загрузка вопросов из файла questions.txt в базу
-# перенести в файл db и запускать 1 раз
+
 with open('questions.txt', 'r') as f:
 
 	fields = ['question_text']
@@ -65,7 +64,7 @@ with open('questions.txt', 'r') as f:
 
 def start(bot, update):
 	q = Question()
-	#reply_keyboard = [['Boy', 'Girl', 'Other']]
+
 	user = u.query.filter(User.id == update.message.from_user.id).first()
 	if user is None:
 		user = User()
@@ -92,10 +91,6 @@ def start(bot, update):
 
 	db_session.add(user)
 	db_session.commit()
-
-	#update.message.reply_text(
-	#	'Привет! Как тебя зовут? ')
-		#reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
 
 	return NAME
 
@@ -127,7 +122,7 @@ def gender(bot, update):
 	usr = update.message.from_user
 	user = u.query.filter(User.id == update.message.from_user.id).first()
 	user.gender = gender
-	#print('u.gender =', u.gender)
+
 	try:
 		db_session.add(user)
 		db_session.commit()
@@ -148,8 +143,6 @@ def age(bot, update):
 	print(user.birthdate)
 	db_session.add(user)
 	db_session.commit()
-	#usr = update.message.from_user
-	#logger.info("Birthday of %s: %s" % (usr.first_name, update.message.text))
 	print(user.birthdate)
 	update.message.reply_text('Now, send me phone number please, '
 							  'or send /skip.')
@@ -165,15 +158,12 @@ def skip_age(bot, update):
 	return PHONE
 
 def phone(bot, update):
-	print('PHONE state')
-	print(update.message.text)
 	user = update.message.from_user
 	user_phone = update.message.text
 	usr = u.query.filter(User.id == update.message.from_user.id).first()
 	usr.phone = update.message.text
 	db_session.add(usr)
 	db_session.commit()
-	#print(update.message.location)
 	logger.info("Phone number of %s: %s"
 				% (user.first_name, update.message.text))
 	update.message.reply_text('Maybe I\'ll call you sometime! '
@@ -208,8 +198,7 @@ def skip_sn(bot, update):
 
 	return ConversationHandler.END
 
-#def feel_today(bot, update):
-	
+
 def cancel(bot, update):
 	user = update.message.from_user
 	logger.info("User %s canceled the conversation." % user.first_name)
@@ -218,19 +207,15 @@ def cancel(bot, update):
 	return ConversationHandler.END
 
 def info(bot, update):
-	#проверка на наличие юзера в бд
 	user = u.query.filter(User.id == update.message.from_user.id).first()
 	if user is None:
 		update.message.reply_text('Привет, давай познакомимся! '
 			'Пожалуйста, нажми /start и представься боту)')
 		return ConversationHandler.END
 
-	#reply_keyboard = [[KeyboardButton('Хорошо',request_location=True)], [KeyboardButton('Плохо',request_location=True)], [KeyboardButton('Нормально',request_location=True)]] 
-	#reply_keyboard = [['Мальчик'], ['Девочка']]
 	reply_keyboard = [['Хорошо', 'Плохо', 'Нормально']] 
 	update.message.reply_text(
 		'Привет! Я хочу задать тебе несколько вопросов. '
-		#'Ты мальчик или девочка?',
 		'Как твое самочувствие сегодня?',
 		reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
 
@@ -265,12 +250,9 @@ def cur_mood(bot, update):
 	db_session.commit()	
 	update.message.reply_text(
 		'Где ты сейчас? Пришли мне геотег или нажми /skip, чтобы пропустить.')
-		#reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))
-	#print('feel_today ends')
 	return WHERE_ARE_YOU
 
 def where_are_you(bot, update):
-	print('STATE WHERE_R_U')
 	reply_keyboard = [['1','2','3'],['4','5','6'],['7','8','9']]
 	print(update.message.location)
 	survey = Survey()
@@ -386,6 +368,18 @@ def color_you_like(bot, update):
 def help(bot, update):
 	update.message.reply_text('/start - знакомство с ботом. /info - запустить опрос.')
 	return ConversationHandler.END	
+def ask(bot, update):
+	question_text = '''
+		Я хочу спросить тебя о том, как ты живешь
+
+		Прошу тебя сегодня весь день сегодня присылать геометку в месте, где\
+		ты куришь. Если ты не куришь, тогда посылай метку, где видишь курящих\
+		людей. Присылай	метку и пиши, что это за место (в подъезде, рядом с\
+		офисом, в кафе, другое).
+
+		'''
+	update.message.reply_text(question_text)
+	return ConversationHandler.END
 
 def error_callback(bot, update, error):
 	try:
@@ -405,7 +399,6 @@ def error_callback(bot, update, error):
 		# the chat_id of a group has changed, use e.new_chat_id instead
 	except TelegramError as ter:
 		print(ter)
-		# handle all other telegram related errors
 		
 def main():
 	# MyQ bot
@@ -413,13 +406,11 @@ def main():
 
 	dp = updater.dispatcher
 
-	# Add conversation handler with the states GENDER, AGE, PHONE, SN
 	conv_handler = ConversationHandler(
 		entry_points=[CommandHandler('start', start),
 					CommandHandler('info', info),
+					CommandHandler('ask', ask),
 					CommandHandler('help', help)],
-		#entry_points=[CommandHandler('ready', ready)],
-# Добавить скип для локейшна и селфи
 
 		states={
 			GENDER: [RegexHandler('^(Boy|Girl|Other)$', gender)],
