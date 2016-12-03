@@ -211,12 +211,14 @@ def cancel(bot, update):
 def info(bot, update):
 	#сделать проверку на наличие юзера в бд
 	#reply_keyboard = [[KeyboardButton('Хорошо',request_location=True)], [KeyboardButton('Плохо',request_location=True)], [KeyboardButton('Нормально',request_location=True)]] 
-	reply_keyboard = [['Хорошо'], ['Плохо'], ['Нормально']] 
+	#reply_keyboard = [['Хорошо'], ['Плохо'], ['Нормально']]
+	reply_keyboard = [['Хорошо', 'Плохо', 'Нормально']] 
 	update.message.reply_text(
 		'Привет! Я хочу задать тебе несколько вопросов. '
 		'Как твое самочувствие сегодня?',
 		reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
 
+	print('ends info')
 	return FEEL_TODAY
 
 def feel_today(bot, update):
