@@ -9,12 +9,12 @@ from db import db_session, User, Question, Survey
 
 from datetime import date, datetime
 
-from telegram import (ReplyKeyboardMarkup, KeyboardButton)
+from telegram import ReplyKeyboardMarkup, KeyboardButton
 
-from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
-						  ConversationHandler)
-from telegram.error import (TelegramError, Unauthorized, BadRequest, 
-							TimedOut, ChatMigrated, NetworkError)
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, RegexHandler, \
+							ConversationHandler
+from telegram.error import TelegramError, Unauthorized, BadRequest, \
+							TimedOut, ChatMigrated, NetworkError
 import telegram
 
 import logging
@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 
 GENDER, AGE, PHONE, SN, \
 FEEL_TODAY, WHERE_ARE_YOU, ARE_YOU_HAPPY_NOW, \
-FRESH_SELFY, FIRST_APP, \
-SMART_SCREENSHOT, COLOR_YOU_LIKE, NAME, CUR_MOOD = range(13)
+FRESH_SELFY, FIRST_APP, SMART_SCREENSHOT, \
+COLOR_YOU_LIKE, NAME, CUR_MOOD, SMOKE, SPORT, NEWS = range(16)
 
 u = User
 q = Question
@@ -73,15 +73,10 @@ def start(bot, update):
 		user.chat_id = int(update.message.chat_id)
 		user.username = update.message.from_user.username
 		pphoto=bot.getFile(profile_photo['photos'][0][-1]['file_id'])
+		# %s {} .format
 		photo_file_name = 'photo/profile/' + str(update.message.from_user.id) + '.jpg'
 		pphoto.download(photo_file_name)
 		user.profile_photo = photo_file_name
-		if bot.get_chat(update.message.chat_id)['type'] == 'group':
-				for admin in bot.get_chat_administrators(chat_id=update.message.chat_id):
-					if admin.user.id == user.id:
-						user.is_admin = True
-					else:
-						user.is_admin = False
 		update.message.reply_text(
 		'Привет! Как тебя зовут? ')
 
@@ -131,6 +126,7 @@ def gender(bot, update):
 
 	logger.info("Gender of %s: %s" % (usr.first_name, update.message.text))
 	update.message.reply_text('Спасибо! Теперь пришли дату рождения, '
+				
 							  'или нажми /skip, чтобы пропустить вопрос.')
 
 	return AGE
@@ -231,8 +227,9 @@ def feel_today(bot, update):
 	survey.answer_date = dt_now
 	survey.user_id = update.message.from_user.id
 	survey.question_id = 1
-	db_session.add(survey)
-	db_session.commit()	
+	if survey.answer_text in reply_keyboard[0]:
+		db_session.add(survey)
+		db_session.commit()	
 	update.message.reply_text(
 		'Какое у тебя настроение?',
 		reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
@@ -323,6 +320,7 @@ def first_app(bot, update):
 	dt_now = datetime.now()
 	survey.answer_text = str(update.message.text)
 	survey.user_id = update.message.from_user.id
+	#question_id берется из бд
 	survey.question_id = 5
 	survey.answer_date = dt_now
 	db_session.add(survey)
@@ -370,7 +368,7 @@ def help(bot, update):
 	return ConversationHandler.END	
 def ask(bot, update):
 	question_text = '''
-		Я хочу спросить тебя о том, как ты живешь
+		Я хочу спросить тебя о том, как ты живешь.
 
 		Прошу тебя сегодня весь день сегодня присылать геометку в месте, где\
 		ты куришь. Если ты не куришь, тогда посылай метку, где видишь курящих\
@@ -381,6 +379,53 @@ def ask(bot, update):
 	update.message.reply_text(question_text)
 	return ConversationHandler.END
 
+def smoke(bot, update):
+	question_text = '''
+		Здорово! А ты спортом занимаешься? Если ответ да, тогда следующий вопрос.\
+		Прошу тебя сегодня весь день сегодня присылать геометку в месте, где ты\
+		занимаешься спортом (или любой физической активностью). Присылай метку и\
+		пиши, что это ты делаешь(в парке, в зале, на улицах города, за городом,\
+		другое) /skip пропустить вопрос.
+		'''
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 7
+	survey.answer_date = dt_now
+	survey.answer_text = str(update.message.text)
+	db_session.add(survey)
+	db_session.commit()	
+	update.message.reply_text(question_text)
+	return SPORT
+
+def sport(bot, update):
+	question_text = '''
+		Спрошу тебя о новостях. Пришли мне геометку сегодня в тот момент,\
+		когда узнаешь важную для себя новость. И обязательно напиши, что\
+		это за новость и откуда ты ее узнал?
+		'''
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 7
+	survey.answer_date = dt_now
+	survey.answer_text = str(update.message.text)
+	db_session.add(survey)
+	db_session.commit()	
+	update.message.reply_text(question_text)
+	return NEWS
+
+def news(bot, update):
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 7
+	survey.answer_date = dt_now
+	survey.answer_text = str(update.message.text)
+	db_session.add(survey)
+	db_session.commit()	
+	return ConversationHandler.END
+	
 def error_callback(bot, update, error):
 	try:
 		raise error
@@ -441,8 +486,13 @@ def main():
 
 			NAME: [MessageHandler(Filters.text, name)],
 
-			CUR_MOOD: [MessageHandler(Filters.text, cur_mood)]
+			CUR_MOOD: [MessageHandler(Filters.text, cur_mood)],
 
+			SMOKE: [MessageHandler(Filters.text, smoke)],
+
+			SPORT: [MessageHandler(Filters.text, sport)],
+
+			NEWS: [MessageHandler(Filters.text, news)]
 
 		},
 
