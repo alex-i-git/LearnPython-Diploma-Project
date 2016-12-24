@@ -15,6 +15,9 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Regex
 							ConversationHandler
 from telegram.error import TelegramError, Unauthorized, BadRequest, \
 							TimedOut, ChatMigrated, NetworkError
+
+from roken import roken
+
 import telegram
 
 import logging
@@ -442,26 +445,18 @@ def cosmetic_ask(bot, update):
 	question_text = '''
 		Планируете ли вы купить себе косметику в ближайшие две недели (помаду, тушь или что-то ещё)?
 		'''
-	survey = Survey()
-	dt_now = datetime.now()
-	survey.user_id = update.message.from_user.id
-	survey.question_id = 7
-	survey.answer_date = dt_now
-	survey.answer_text = str(update.message.text)
-	db_session.add(survey)
-	db_session.commit()
 	update.message.reply_text(question_text)
 	return COSMETIC_IF
 	
 def cosmetic_if(bot, update):
 	if str((update.message.text).lower()) == 'да':
-#		question_text = '''
-#			Присылайте фотографии и гео-метки каждый раз,\
-#		когда думаете о помаде/туши и других средствах для макияжа\
-#		и когда видите какую-то информацию о средствах для макияжа.
-#			'''
-#		update.message.reply_text(question_text)
-		return COSMETIC_KEY
+		question_text = '''
+			Присылайте фотографии и гео-метки каждый раз,\
+		когда думаете о помаде/туши и других средствах для макияжа\
+		и когда видите какую-то информацию о средствах для макияжа.
+			'''
+		update.message.reply_text(question_text)
+		return COSMETIC_ANSWER
 	else:
 		print("NO")
 	print('cosmetic_if OK')
@@ -474,27 +469,36 @@ def cosmetic_answer(bot, update):
 	survey.question_id = 7
 	survey.answer_date = dt_now
 	survey.answer_text = str(update.message.text)
-	#photo_file = bot.getFile(update.message.photo[-1].file_id)
-	#photo_name = 'photo/cosmetic/cosm_' + str(update.message.from_user.id) + '_' + str(dt_now.strftime('%d.%m.%Y_%H:%M')) + '.jpg'
-	#photo_file.download(photo_name)
-	#survey.answer_photo = photo_name
+	photo_file = bot.getFile(update.message.photo[-1].file_id)
+	photo_name = 'photo/cosmetic/cosm_' + str(update.message.from_user.id) + '_' + str(dt_now.strftime('%d.%m.%Y_%H:%M')) + '.jpg'
+	photo_file.download(photo_name)
+	survey.answer_photo = photo_name
 	print(update.message.text)
+	question_text = '''
+			Спасибо! Теперь пришли, пожалуйста, геометку\
+			где сделана эта фотография.
+			'''
+	update.message.reply_text(question_text)
 	#survey.longitude = update.message.location['longitude']
 	#survey.latitude = update.message.location['latitude']
-	survey.longitude = update.message.location['longitude']
-	survey.latitude = update.message.location['latitude']
+	#survey.longitude = update.message.location['longitude']
+	#survey.latitude = update.message.location['latitude']
 	db_session.add(survey)
 	db_session.commit()	
 	return COSMETIC_GEO
 
 def cosmetic_key(bot, update):
-	brand1_btn = KeyboardButton('Brand1', request_location=True)
-	brand2_btn = KeyboardButton('Brand2', request_location=True)
-	brand3_btn = KeyboardButton('Brand3', request_location=True)
+	#brand1_btn = KeyboardButton('Brand1', request_location=True)
+	#brand2_btn = KeyboardButton('Brand2', request_location=True)
+	#brand3_btn = KeyboardButton('Brand3', request_location=True)
+	brand1_btn = KeyboardButton('Brand1')
+	brand2_btn = KeyboardButton('Brand2')
+	brand3_btn = KeyboardButton('Brand3')
 	reply_keyboard = [[brand1_btn],[brand2_btn],[brand3_btn]]
 	update.message.reply_text(
-	'Какой бренд сейчас тебе больше нравится?',
-			reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))
+	'Какой бренд сейчас тебе больше нравится?')
+
+	#		reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))
 	print('COSMETIC KEY')
 	return COSMETIC_ANSWER
 
@@ -532,8 +536,8 @@ def error_callback(bot, update, error):
 		
 def main():
 	# MyQ bot
-	updater = Updater("265721672:AAF2PZz-LI5O1F2P_hiOe5AvMR-g19bwYGk")
-
+	#updater = Updater("265721672:AAF2PZz-LI5O1F2P_hiOe5AvMR-g19bwYGk")
+	updater = Updater(roken)
 	dp = updater.dispatcher
 
 	conv_handler = ConversationHandler(
