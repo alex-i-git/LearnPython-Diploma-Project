@@ -34,7 +34,9 @@ logger = logging.getLogger(__name__)
 GENDER, AGE, PHONE, SN, \
 FEEL_TODAY, WHERE_ARE_YOU, ARE_YOU_HAPPY_NOW, \
 FRESH_SELFY, FIRST_APP, SMART_SCREENSHOT, \
-COLOR_YOU_LIKE, NAME, CUR_MOOD, SMOKE, SPORT, NEWS = range(16)
+COLOR_YOU_LIKE, NAME, CUR_MOOD, SMOKE, SPORT, \
+NEWS, COSMETIC_ASK, COSMETIC_IF, COSMETIC_ANSWER,\
+HAPPY_NEW_YEAR, COSMETIC_GEO, COSMETIC_KEY = range(22)
 
 u = User
 q = Question
@@ -46,6 +48,7 @@ if os.path.isdir(photo_dir) == False:
 	os.mkdir(photo_dir + '/profile')
 	os.mkdir(photo_dir + '/selfy')
 	os.mkdir(photo_dir + '/screenshot')
+	os.mkdir(photo_dir + '/cosmetic')
 
 if os.path.isfile('botdb.sqlite') == True:
 	print('Db file exists')
@@ -377,7 +380,7 @@ def ask(bot, update):
 
 		'''
 	update.message.reply_text(question_text)
-	return ConversationHandler.END
+	return SMOKE
 
 def smoke(bot, update):
 	question_text = '''
@@ -393,6 +396,8 @@ def smoke(bot, update):
 	survey.question_id = 7
 	survey.answer_date = dt_now
 	survey.answer_text = str(update.message.text)
+	survey.longitude = update.message.location['longitude']
+	survey.latitude = update.message.location['latitude']
 	db_session.add(survey)
 	db_session.commit()	
 	update.message.reply_text(question_text)
@@ -425,7 +430,87 @@ def news(bot, update):
 	db_session.add(survey)
 	db_session.commit()	
 	return ConversationHandler.END
+
+def happy_new_year(bot, update):
+	question_text = '''
+		Где вы будете отмечать новый год?
+		'''
+	update.message.reply_text(question_text)
+	return COSMETIC_ASK
+
+def cosmetic_ask(bot, update):
+	question_text = '''
+		Планируете ли вы купить себе косметику в ближайшие две недели (помаду, тушь или что-то ещё)?
+		'''
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 7
+	survey.answer_date = dt_now
+	survey.answer_text = str(update.message.text)
+	db_session.add(survey)
+	db_session.commit()
+	update.message.reply_text(question_text)
+	return COSMETIC_IF
 	
+def cosmetic_if(bot, update):
+	if str((update.message.text).lower()) == 'да':
+#		question_text = '''
+#			Присылайте фотографии и гео-метки каждый раз,\
+#		когда думаете о помаде/туши и других средствах для макияжа\
+#		и когда видите какую-то информацию о средствах для макияжа.
+#			'''
+#		update.message.reply_text(question_text)
+		return COSMETIC_KEY
+	else:
+		print("NO")
+	print('cosmetic_if OK')
+	return ConversationHandler.END
+
+def cosmetic_answer(bot, update):
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 7
+	survey.answer_date = dt_now
+	survey.answer_text = str(update.message.text)
+	#photo_file = bot.getFile(update.message.photo[-1].file_id)
+	#photo_name = 'photo/cosmetic/cosm_' + str(update.message.from_user.id) + '_' + str(dt_now.strftime('%d.%m.%Y_%H:%M')) + '.jpg'
+	#photo_file.download(photo_name)
+	#survey.answer_photo = photo_name
+	print(update.message.text)
+	#survey.longitude = update.message.location['longitude']
+	#survey.latitude = update.message.location['latitude']
+	survey.longitude = update.message.location['longitude']
+	survey.latitude = update.message.location['latitude']
+	db_session.add(survey)
+	db_session.commit()	
+	return COSMETIC_GEO
+
+def cosmetic_key(bot, update):
+	brand1_btn = KeyboardButton('Brand1', request_location=True)
+	brand2_btn = KeyboardButton('Brand2', request_location=True)
+	brand3_btn = KeyboardButton('Brand3', request_location=True)
+	reply_keyboard = [[brand1_btn],[brand2_btn],[brand3_btn]]
+	update.message.reply_text(
+	'Какой бренд сейчас тебе больше нравится?',
+			reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard = True, one_time_keyboard=True))
+	print('COSMETIC KEY')
+	return COSMETIC_ANSWER
+
+def cosmetic_geo(bot, update):
+	survey = Survey()
+	dt_now = datetime.now()
+	survey.user_id = update.message.from_user.id
+	survey.question_id = 7
+	survey.answer_date = dt_now
+	survey.longitude = update.message.location['longitude']
+	survey.latitude = update.message.location['latitude']
+	db_session.add(survey)
+	db_session.commit()
+	print(update.message)
+	return ConversationHandler.END
+
 def error_callback(bot, update, error):
 	try:
 		raise error
@@ -455,6 +540,7 @@ def main():
 		entry_points=[CommandHandler('start', start),
 					CommandHandler('info', info),
 					CommandHandler('ask', ask),
+					CommandHandler('happy_new_year', happy_new_year),
 					CommandHandler('help', help)],
 
 		states={
@@ -492,7 +578,17 @@ def main():
 
 			SPORT: [MessageHandler(Filters.text, sport)],
 
-			NEWS: [MessageHandler(Filters.text, news)]
+			NEWS: [MessageHandler(Filters.text, news)],
+
+			COSMETIC_ASK: [MessageHandler(Filters.text, cosmetic_ask)],
+
+			COSMETIC_IF: [MessageHandler(Filters.text, cosmetic_if)],
+
+			COSMETIC_ANSWER: [MessageHandler(Filters.all, cosmetic_answer)],
+
+			COSMETIC_GEO: [MessageHandler(Filters.location, cosmetic_geo)],
+
+			COSMETIC_KEY: [MessageHandler(Filters.all, cosmetic_key)]
 
 		},
 
